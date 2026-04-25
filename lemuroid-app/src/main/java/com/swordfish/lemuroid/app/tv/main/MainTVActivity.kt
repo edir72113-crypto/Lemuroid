@@ -31,13 +31,13 @@ class MainTVActivity : FragmentActivity() {
         myWebView.settings.javaScriptEnabled = true
         myWebView.settings.domStorageEnabled = true
         
-        // 1. MATA O CACHE: Garante que o React atualizado sempre seja baixado
+        // 1. LIMPEZA DE CACHE: Garante que o site React sempre carregue atualizado
         myWebView.clearCache(true)
         myWebView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
 
         myWebView.webViewClient = WebViewClient()
 
-        // 2. INJETA A PONTE: Conecta o JS com o Kotlin
+        // 2. INJEÇÃO DA PONTE NATIVA: Conecta o site com o Android
         myWebView.addJavascriptInterface(ArenaRetroNativeBridge(this), "ArenaRetroNative")
         myWebView.loadUrl("https://gorjetaplus.online/")
     }
@@ -49,7 +49,7 @@ class MainTVActivity : FragmentActivity() {
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
     
-    // FUNÇÃO 1: INICIAR O JOGO
+    // FUNÇÃO 1: INICIAR O JOGO (COM TODAS AS MALAS NECESSÁRIAS)
     @Keep
     @JavascriptInterface
     fun iniciarJogo(romUrl: String, console: String) {
@@ -59,7 +59,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                     Toast.makeText(context, "Baixando jogo da nuvem...", Toast.LENGTH_SHORT).show()
                 }
 
-                // 1. Download da ROM
+                // Download da ROM para a pasta de Cache
                 val url = URL(romUrl)
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
@@ -75,7 +75,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 tempFile.writeBytes(bytes)
 
                 if (tempFile.length() < 10000) {
-                    throw Exception("Arquivo muito pequeno! O link da ROM pode estar quebrado.")
+                    throw Exception("Arquivo muito pequeno! Link quebrado.")
                 }
 
                 (context as FragmentActivity).runOnUiThread {
@@ -83,7 +83,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         data = Uri.fromFile(tempFile)
                     }
 
-                    // 🚀 O HACK DO JOGO: Identidade necessária para o emulador
+                    // 🚀 O HACK DO JOGO: Identidade necessária (Chave "GAME")
                     val mockGame = Game(
                         id = -1,
                         title = "Fliperama Arena Retro",
@@ -95,15 +95,15 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    // 🚀 O HACK DA CONFIG: A "mala" que faltava e causava o crash
+                    // 🚀 O HACK DA CONFIG: A "mala" obrigatória (Chave "EXTRA_SYSTEM_CORE_CONFIG")
                     val mockConfig = SystemCoreConfig(
                         systemId = console,
-                        coreId = "", // O Lemuroid escolherá o core padrão para o console
+                        coreId = "", // O Lemuroid escolherá o core padrão
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
                     
-                    // Usando as chaves exatas descobertas no BaseGameActivity.kt
+                    // Injeta os dados usando as chaves exatas do BaseGameActivity.kt
                     intent.putExtra("GAME", mockGame)
                     intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
                     intent.putExtra("core_name", console)
@@ -124,7 +124,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
     @JavascriptInterface
     fun fecharEmulador() {
         (context as FragmentActivity).runOnUiThread {
-            // O comando CLEAR_TOP destrói o emulador e traz o site de volta para a frente
+            // O comando CLEAR_TOP destrói o jogo e traz a WebView de volta sem recarregar
             val intent = Intent(context, MainTVActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
