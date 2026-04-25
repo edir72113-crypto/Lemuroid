@@ -14,6 +14,7 @@ import androidx.annotation.Keep
 import androidx.fragment.app.FragmentActivity
 import com.swordfish.lemuroid.R
 import com.swordfish.lemuroid.app.tv.game.TVGameActivity
+import com.swordfish.lemuroid.lib.library.GameSystem
 import com.swordfish.lemuroid.lib.library.SystemCoreConfig
 import com.swordfish.lemuroid.lib.library.CoreID
 import com.swordfish.lemuroid.lib.library.db.entity.Game
@@ -30,19 +31,12 @@ class MainTVActivity : FragmentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         
-        // 🚀 FIX GRÁFICO: Desativa o Wide Color Gamut que está crashando a renderização
+        // 🚀 FIX GRÁFICO (Desativa o Wide Gamut que dava crash de OpenGL)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
             window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT
         }
-        
-        // Força aceleração de hardware no nível da janela
-        window.setFlags(
-            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
-            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
-        )
 
         setContentView(R.layout.activity_tv_main)
-
         val myWebView: WebView = findViewById(R.id.arena_retro_webview)
         
         myWebView.settings.apply {
@@ -50,18 +44,15 @@ class MainTVActivity : FragmentActivity() {
             domStorageEnabled = true
             useWideViewPort = true
             loadWithOverviewMode = true
-            databaseEnabled = true
-            // 🚀 ESTABILIDADE: Garante que a WebView não interfira nos recursos de GPU do emulador
-            setRenderPriority(WebSettings.RenderPriority.HIGH)
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
-        
         myWebView.setInitialScale(1)
         myWebView.clearCache(true)
         myWebView.webViewClient = WebViewClient()
         myWebView.addJavascriptInterface(ArenaRetroNativeBridge(this), "ArenaRetroNative")
         myWebView.loadUrl("https://gorjetaplus.online/")
     }
+}
 
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
@@ -76,17 +67,10 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 }
 
                 val url = URL(romUrl)
-                val connection = url.openConnection() as java.net.HttpURLConnection
-                connection.requestMethod = "GET"
-                connection.connect()
-
-                if (connection.responseCode != 200) {
-                    throw Exception("Erro no servidor: ${connection.responseCode}")
-                }
-
                 val bytes = url.readBytes()
-                val extensaoOriginal = romUrl.substringAfterLast(".", "rom")
-                val tempFile = File(context.cacheDir, "temp_game.$extensaoOriginal")
+                val extensao = romUrl.substringAfterLast(".", "sfc").lowercase()
+                
+                val tempFile = File(context.filesDir, "game.$extensao")
                 tempFile.writeBytes(bytes)
 
                 (context as FragmentActivity).runOnUiThread {
@@ -94,10 +78,20 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         data = Uri.fromFile(tempFile)
                     }
 
+                    val systemIdUpper = console.uppercase()
+
+                    // 🚀 O GRANDE TRUQUE: Procura o sistema real dentro do próprio Lemuroid
+                    val gameSystem = GameSystem.all().find { it.id.name == systemIdUpper }
+                        ?: GameSystem.findByUniqueFileExtension(extensao)
+                        ?: GameSystem.all().first()
+
+                    // Extrai o nome de banco de dados que o Lemuroid realmente exige ("Nintendo - Super Nintendo...")
+                    val correctDbName = gameSystem.id.dbname
+
                     val mockGame = Game(
                         id = -1,
                         title = "Arena Retrô Play",
-                        systemId = console,
+                        systemId = correctDbName, // AQUI É A CHAVE DE OURO QUE RESOLVE O ERRO
                         fileName = tempFile.name,
                         fileUri = Uri.fromFile(tempFile).toString(),
                         developer = "Gorjeta Plus",
@@ -105,28 +99,21 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    val mockConfigsMap = HashMap<Int, ArrayList<ControllerConfig>>()
-
-                    // 🚀 CORREÇÃO DEFINITIVA: Em vez de CoreID(""), pegamos o primeiro valor do Enum
-                    val defaultCore = CoreID.values().first()
-
-                    val mockConfig = SystemCoreConfig(
-                        coreID = defaultCore, 
-                        controllerConfigs = mockConfigsMap,
+                    // Em vez de uma "mala" falsa, pegamos a configuração exata (controles e núcleo) do console selecionado!
+                    val mockConfig = gameSystem.systemCoreConfigs.firstOrNull() ?: SystemCoreConfig(
+                        coreID = CoreID.values().first(), 
+                        controllerConfigs = HashMap<Int, ArrayList<ControllerConfig>>(),
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
                     
                     intent.putExtra("GAME", mockGame)
                     intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
-                    intent.putExtra("core_name", console)
-
                     context.startActivity(intent)
                 }
-
             } catch (e: Exception) {
                 (context as FragmentActivity).runOnUiThread {
-                    Toast.makeText(context, "ERRO: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "FALHA: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
