@@ -70,7 +70,12 @@ class ArenaRetroNativeBridge(private val context: Context) {
 
                 // Inspetor de Download - Passo 3: Baixar os bytes
                 val bytes = url.readBytes()
-                val tempFile = File(context.cacheDir, "temp_game.rom")
+                
+                // 🚀 A SUA IDEIA AQUI: Pega a extensão real do link (.sfc, .smc, .bin, etc)
+                // Se não achar um ponto, ele usa "rom" como segurança.
+                val extensaoOriginal = romUrl.substringAfterLast(".", "rom")
+                val tempFile = File(context.cacheDir, "temp_game.$extensaoOriginal")
+                
                 tempFile.writeBytes(bytes)
 
                 // Inspetor de Download - Passo 4: O arquivo é uma página HTML de erro quebrada? (menor que 10KB)
