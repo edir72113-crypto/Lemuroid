@@ -1,5 +1,14 @@
 package com.swordfish.lemuroid.app.shared.game
 
+// 🚀 IMPORTS NOVOS PARA O WEBSOCKET NATIVO
+import okhttp3.OkHttpClient
+import okhttp3.Request
+import okhttp3.WebSocket
+import okhttp3.WebSocketListener
+import okhttp3.Response
+import org.json.JSONArray
+import org.json.JSONObject
+
 import android.app.Activity
 import android.content.Intent
 import android.content.SharedPreferences
@@ -88,6 +97,9 @@ abstract class BaseGameActivity : ImmersiveActivity() {
 
     private val startGameTime = System.currentTimeMillis()
     private var finishTriggered = false
+    
+    // 🚀 VARIÁVEL DO WEBSOCKET NATIVO
+    private var nativeWebSocket: WebSocket? = null
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -147,6 +159,13 @@ abstract class BaseGameActivity : ImmersiveActivity() {
         )
 
         initialiseFlows()
+
+        // 🚀 INICIA A CONEXÃO COM O NODE.JS EM BACKGROUND
+        val tvId = intent.getStringExtra("TV_ID")
+        val backendUrl = intent.getStringExtra("BACKEND_URL")
+        if (!tvId.isNullOrEmpty() && !backendUrl.isNullOrEmpty()) {
+            connectNativeSocket(tvId, backendUrl)
+        }
     }
 
     @Composable
@@ -215,7 +234,6 @@ abstract class BaseGameActivity : ImmersiveActivity() {
                     (baseGameScreenViewModel.retroGameView.retroGameView?.frameSpeed ?: 1) > 1,
                 )
                 this.putExtra(GameMenuContract.EXTRA_CURRENT_TILT_CONFIG, currentTiltConfiguration)
-                // TODO PADS... Make sure to avoid passing this if a physical pad is connected.
                 this.putExtra(GameMenuContract.EXTRA_TILT_ALL_CONFIGS, tiltConfigurations.toTypedArray())
             }
         startActivityForResult(intent, DIALOG_REQUEST)
@@ -351,6 +369,8 @@ abstract class BaseGameActivity : ImmersiveActivity() {
     }
 
     override fun onDestroy() {
+        // 🚀 FECHA A CONEXÃO AO SAIR DO JOGO
+        nativeWebSocket?.close(1000, "Jogo Fechado") 
         if (!isChangingConfigurations) {
             GameService.requestTermination()
         }
@@ -414,6 +434,66 @@ abstract class BaseGameActivity : ImmersiveActivity() {
                 baseGameScreenViewModel.changeTiltConfiguration(tiltConfig!!)
             }
         }
+    }
+
+    // ==========================================
+    // 🚀 MÉTODOS PARA PROCESSAR OS COMANDOS DO CELULAR
+    // ==========================================
+    private fun connectNativeSocket(tvId: String, backendUrl: String) {
+        val client = OkHttpClient()
+        val wsUrl = backendUrl.replace("http://", "ws://").replace("https://", "wss://") + "/socket.io/?EIO=4&transport=websocket"
+        val request = Request.Builder().url(wsUrl).build()
+
+        nativeWebSocket = client.newWebSocket(request, object : WebSocketListener() {
+            override fun onOpen(webSocket: WebSocket, response: Response) {
+                webSocket.send("40") 
+                val registerMsg = """42["register_tv_native", {"tvId":"$tvId"}]"""
+                webSocket.send(registerMsg)
+            }
+
+            override fun onMessage(webSocket: WebSocket, text: String) {
+                if (text == "2") { webSocket.send("3"); return } 
+                
+                if (text.startsWith("42")) {
+                    try {
+                        val jsonArray = JSONArray(text.substring(2))
+                        val eventName = jsonArray.getString(0)
+                        
+                        if (eventName == "button_event") {
+                            val data = jsonArray.getJSONObject(1)
+                            val key = data.getString("key")
+                            val action = data.getString("action")
+                            handleNativeInput(key, action)
+                        } 
+                        else if (eventName == "voltar_catalogo") {
+                            runOnUiThread { baseGameScreenViewModel.requestFinish() }
+                        }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            }
+        })
+    }
+
+    private fun handleNativeInput(key: String, action: String) {
+        val isDown = action == "down"
+        val keyCode = when(key.uppercase()) {
+            "UP" -> KeyEvent.KEYCODE_DPAD_UP
+            "DOWN" -> KeyEvent.KEYCODE_DPAD_DOWN
+            "LEFT" -> KeyEvent.KEYCODE_DPAD_LEFT
+            "RIGHT" -> KeyEvent.KEYCODE_DPAD_RIGHT
+            "A" -> KeyEvent.KEYCODE_BUTTON_A
+            "B" -> KeyEvent.KEYCODE_BUTTON_B
+            "X" -> KeyEvent.KEYCODE_BUTTON_X
+            "Y" -> KeyEvent.KEYCODE_BUTTON_Y
+            "START" -> KeyEvent.KEYCODE_BUTTON_START
+            "SELECT" -> KeyEvent.KEYCODE_BUTTON_SELECT
+            "L1" -> KeyEvent.KEYCODE_BUTTON_L1
+            "R1" -> KeyEvent.KEYCODE_BUTTON_R1
+            else -> return
+        }
+        val keyAction = if (isDown) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP
+        val event = KeyEvent(keyAction, keyCode)
+        baseGameScreenViewModel.sendKeyEvent(keyCode, event)
     }
 
     companion object {
