@@ -125,6 +125,9 @@ android {
 }
 
 dependencies {
+    implementation("com.squareup.okhttp3:okhttp:4.12.0")
+    implementation(project(":retrograde-app-shared"))
+    implementation(project(":lemuroid-touchinput"))
     implementation("io.socket:socket.io-client:2.1.0")
     implementation(project(":retrograde-util"))
     implementation(project(":retrograde-app-shared"))
