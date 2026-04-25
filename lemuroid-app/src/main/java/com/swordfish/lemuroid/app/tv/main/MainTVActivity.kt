@@ -42,7 +42,7 @@ class MainTVActivity : FragmentActivity() {
 }
 
 // ==========================================
-// A PONTE MÁGICA (COM O HACK DO OBJETO GAME)
+// A PONTE MÁGICA (COM O HACK DO BANCO DE DADOS CORRIGIDO)
 // ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
@@ -75,26 +75,24 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 }
 
                 (context as FragmentActivity).runOnUiThread {
-                    // 1. Cria o Intent para abrir o emulador
                     val intent = Intent(context, TVGameActivity::class.java).apply {
                         data = Uri.fromFile(tempFile)
                         putExtra("core_name", console)
                     }
 
-                    // 2. O HACK: Cria um jogo falso para enganar o banco de dados do Lemuroid
+                    // 🚀 O HACK CORRIGIDO: Preenchendo exatamente o que o compilador exigiu!
                     val mockGame = com.swordfish.lemuroid.lib.library.db.entity.Game(
-                        id = -1, // ID Falso
-                        title = "Gorjeta Plus Game",
-                        path = tempFile.absolutePath, // Onde o jogo está salvo
+                        id = -1,
+                        title = "Fliperama Arena Retro",
                         systemId = console,
-                        isStarred = false,
-                        coverUrl = null
+                        fileName = tempFile.name,
+                        fileUri = Uri.fromFile(tempFile).toString(),
+                        developer = "Gorjeta Plus",
+                        coverFrontUrl = "",
+                        lastIndexedAt = System.currentTimeMillis()
                     )
                     
-                    // 3. Envia o Jogo Falso como "bagagem" junto com a intenção
                     intent.putExtra("game", mockGame)
-
-                    // 4. Inicia!
                     context.startActivity(intent)
                 }
 
