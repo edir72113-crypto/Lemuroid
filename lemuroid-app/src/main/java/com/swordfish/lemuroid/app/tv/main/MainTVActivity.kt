@@ -42,11 +42,12 @@ class MainTVActivity : FragmentActivity() {
 }
 
 // ==========================================
-// A PONTE MÁGICA (COM O HACK DO BANCO DE DADOS CORRIGIDO)
+// A PONTE MÁGICA (METRALHADORA DE CHAVES E BOTÃO DE SAIR)
 // ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
     
+    // FUNÇÃO 1: INICIAR O JOGO
     @Keep
     @JavascriptInterface
     fun iniciarJogo(romUrl: String, console: String) {
@@ -80,7 +81,6 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         putExtra("core_name", console)
                     }
 
-                    // 🚀 O HACK CORRIGIDO: Preenchendo exatamente o que o compilador exigiu!
                     val mockGame = com.swordfish.lemuroid.lib.library.db.entity.Game(
                         id = -1,
                         title = "Fliperama Arena Retro",
@@ -92,7 +92,17 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
                     
-                    intent.putExtra("game", mockGame)
+                    // 🚀 O HACK DA METRALHADORA: Colocamos o jogo em todas as gavetas possíveis!
+                    val chavesPossiveis = arrayOf(
+                        "game", "GAME", "Game", 
+                        "extra_game", "EXTRA_GAME", 
+                        "game_extra", "GAME_EXTRA", 
+                        "game_model", "model"
+                    )
+                    for (chave in chavesPossiveis) {
+                        intent.putExtra(chave, mockGame)
+                    }
+
                     context.startActivity(intent)
                 }
 
@@ -101,6 +111,19 @@ class ArenaRetroNativeBridge(private val context: Context) {
                     Toast.makeText(context, "FALHA: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
+        }
+    }
+
+    // FUNÇÃO 2: FECHAR O EMULADOR PELO CELULAR
+    @Keep
+    @JavascriptInterface
+    fun fecharEmulador() {
+        (context as FragmentActivity).runOnUiThread {
+            // O comando CLEAR_TOP destrói o emulador e traz o site de volta para a frente sem recarregar a página
+            val intent = Intent(context, MainTVActivity::class.java).apply {
+                addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
+            }
+            context.startActivity(intent)
         }
     }
 }
