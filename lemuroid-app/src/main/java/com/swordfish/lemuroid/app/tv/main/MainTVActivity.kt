@@ -29,6 +29,18 @@ class MainTVActivity : FragmentActivity() {
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        
+        // 🚀 FIX GRÁFICO: Desativa o Wide Color Gamut que está crashando a renderização
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
+            window.colorMode = android.content.pm.ActivityInfo.COLOR_MODE_DEFAULT
+        }
+        
+        // Força aceleração de hardware no nível da janela
+        window.setFlags(
+            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED,
+            android.view.WindowManager.LayoutParams.FLAG_HARDWARE_ACCELERATED
+        )
+
         setContentView(R.layout.activity_tv_main)
 
         val myWebView: WebView = findViewById(R.id.arena_retro_webview)
@@ -39,16 +51,17 @@ class MainTVActivity : FragmentActivity() {
             useWideViewPort = true
             loadWithOverviewMode = true
             databaseEnabled = true
+            // 🚀 ESTABILIDADE: Garante que a WebView não interfira nos recursos de GPU do emulador
+            setRenderPriority(WebSettings.RenderPriority.HIGH)
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
+        
         myWebView.setInitialScale(1)
         myWebView.clearCache(true)
-
         myWebView.webViewClient = WebViewClient()
         myWebView.addJavascriptInterface(ArenaRetroNativeBridge(this), "ArenaRetroNative")
         myWebView.loadUrl("https://gorjetaplus.online/")
     }
-}
 
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
