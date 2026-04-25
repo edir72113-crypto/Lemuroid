@@ -15,9 +15,13 @@ import androidx.fragment.app.FragmentActivity
 import com.swordfish.lemuroid.R
 import com.swordfish.lemuroid.app.tv.game.TVGameActivity
 import com.swordfish.lemuroid.lib.library.SystemCoreConfig
+import com.swordfish.lemuroid.lib.library.CoreID
 import com.swordfish.lemuroid.lib.library.db.entity.Game
+import com.swordfish.lemuroid.lib.controller.ControllerConfig
 import java.io.File
 import java.net.URL
+import java.util.HashMap
+import java.util.ArrayList
 import kotlin.concurrent.thread
 
 class MainTVActivity : FragmentActivity() {
@@ -29,7 +33,6 @@ class MainTVActivity : FragmentActivity() {
 
         val myWebView: WebView = findViewById(R.id.arena_retro_webview)
         
-        // --- CONFIGURAÇÕES PARA FIXAR ZOOM E CORTE DE TEXTO ---
         myWebView.settings.apply {
             javaScriptEnabled = true
             domStorageEnabled = true
@@ -38,9 +41,8 @@ class MainTVActivity : FragmentActivity() {
             databaseEnabled = true
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
-        myWebView.setInitialScale(1) // Garante escala 1:1
+        myWebView.setInitialScale(1)
         myWebView.clearCache(true)
-        // -------------------------------------------------------
 
         myWebView.webViewClient = WebViewClient()
         myWebView.addJavascriptInterface(ArenaRetroNativeBridge(this), "ArenaRetroNative")
@@ -48,9 +50,6 @@ class MainTVActivity : FragmentActivity() {
     }
 }
 
-// ==========================================
-// A PONTE NATIVA (CORRIGIDA PARA O COMPILADOR)
-// ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
     
@@ -60,7 +59,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
         thread {
             try {
                 (context as FragmentActivity).runOnUiThread {
-                    Toast.makeText(context, "Carregando jogo...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "A preparar o jogo...", Toast.LENGTH_SHORT).show()
                 }
 
                 val url = URL(romUrl)
@@ -77,16 +76,11 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 val tempFile = File(context.cacheDir, "temp_game.$extensaoOriginal")
                 tempFile.writeBytes(bytes)
 
-                if (tempFile.length() < 10000) {
-                    throw Exception("ROM inválida ou link quebrado.")
-                }
-
                 (context as FragmentActivity).runOnUiThread {
                     val intent = Intent(context, TVGameActivity::class.java).apply {
                         data = Uri.fromFile(tempFile)
                     }
 
-                    // 1. Objeto Game (Identidade)
                     val mockGame = Game(
                         id = -1,
                         title = "Arena Retrô Play",
@@ -98,16 +92,16 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    // 2. Objeto SystemCoreConfig (Ajustado para os erros de compilação)
-                    // O compilador pediu 'coreID' e 'controllerConfigs'
+                    // 🚀 CORREÇÃO PARA O COMPILADOR: Criando o HashMap exato exigido
+                    val mockConfigsMap = HashMap<Int, ArrayList<ControllerConfig>>()
+
                     val mockConfig = SystemCoreConfig(
-                        coreID = "", // Nome corrigido (ID maiúsculo)
-                        controllerConfigs = listOf(), // Parâmetro obrigatório que faltava
+                        coreID = CoreID(""), // Transformado em objeto CoreID
+                        controllerConfigs = mockConfigsMap, // HashMap vazio mas do tipo correto
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
                     
-                    // Injeção com as chaves exatas do BaseGameActivity
                     intent.putExtra("GAME", mockGame)
                     intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
                     intent.putExtra("core_name", console)
@@ -117,7 +111,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
 
             } catch (e: Exception) {
                 (context as FragmentActivity).runOnUiThread {
-                    Toast.makeText(context, "FALHA: ${e.message}", Toast.LENGTH_LONG).show()
+                    Toast.makeText(context, "ERRO: ${e.message}", Toast.LENGTH_LONG).show()
                 }
             }
         }
