@@ -6,7 +6,6 @@ import com.swordfish.lemuroid.app.tv.game.TVGameActivity
 import com.swordfish.lemuroid.app.tv.gamemenu.TVGameMenuActivity
 import com.swordfish.lemuroid.app.tv.input.TVGamePadBindingActivity
 import com.swordfish.lemuroid.app.tv.input.TVGamePadShortcutBindingActivity
-import com.swordfish.lemuroid.app.tv.main.MainTVActivity
 import com.swordfish.lemuroid.app.tv.settings.TVSettingsActivity
 import com.swordfish.lemuroid.lib.injection.PerActivity
 import dagger.Module
@@ -14,9 +13,9 @@ import dagger.android.ContributesAndroidInjector
 
 @Module
 abstract class LemuroidTVApplicationModule {
-    @PerActivity
-    @ContributesAndroidInjector(modules = [MainTVActivity.Module::class])
-    abstract fun tvMainActivity(): MainTVActivity
+
+    // 🔴 Removemos o bloco da MainTVActivity que estava aqui. 
+    // Como ela agora é uma WebView simples, não precisa de injeção automática.
 
     @PerActivity
     @ContributesAndroidInjector
