@@ -2,6 +2,8 @@ package com.swordfish.lemuroid.app.tv.main
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.webkit.JavascriptInterface
 import android.webkit.WebView
@@ -9,6 +11,10 @@ import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.fragment.app.FragmentActivity
 import com.swordfish.lemuroid.app.R
+import com.swordfish.lemuroid.app.tv.game.TVGameActivity
+import java.io.File
+import java.net.URL
+import kotlin.concurrent.thread
 
 class MainTVActivity : FragmentActivity() {
 
@@ -22,22 +28,44 @@ class MainTVActivity : FragmentActivity() {
         myWebView.settings.domStorageEnabled = true
         myWebView.webViewClient = WebViewClient()
 
-        // 1. A PONTE MÁGICA: Conecta o seu site React ao hardware nativo da TV
         myWebView.addJavascriptInterface(ArenaRetroNative(this), "ArenaRetroNative")
-
         myWebView.loadUrl("https://gorjetaplus.online/")
     }
 
-    // 2. Esta classe fica "escutando" os comandos que vêm do seu React
     inner class ArenaRetroNative(private val context: Context) {
         
         @JavascriptInterface
         fun iniciarJogo(romUrl: String, console: String) {
-            // Quando o React chamar essa função, o Kotlin fará o download da ROM
-            // e vai disparar o motor C++ do Lemuroid. (Faremos essa lógica no próximo passo)
-            
-            // Um aviso só para termos certeza que a ponte funcionou quando testarmos:
-            Toast.makeText(context, "Kotlin recebeu: \$console", Toast.LENGTH_SHORT).show()
+            // Roda em segundo plano para não travar a TV
+            thread {
+                try {
+                    runOnUiThread {
+                        Toast.makeText(context, "Baixando jogo da nuvem...", Toast.LENGTH_SHORT).show()
+                    }
+
+                    // 1. Baixa a ROM da sua VPS
+                    val url = URL(romUrl)
+                    val bytes = url.readBytes()
+                    
+                    // 2. Salva na memória temporária da TV (Cache)
+                    val tempFile = File(context.cacheDir, "temp_game.rom")
+                    tempFile.writeBytes(bytes)
+
+                    // 3. Manda o Lemuroid abrir o jogo no Motor C++!
+                    runOnUiThread {
+                        val intent = Intent(context, TVGameActivity::class.java).apply {
+                            data = Uri.fromFile(tempFile)
+                            putExtra("core_name", console) // Diz para o motor se é SNES, N64, etc.
+                        }
+                        context.startActivity(intent)
+                    }
+
+                } catch (e: Exception) {
+                    runOnUiThread {
+                        Toast.makeText(context, "Erro ao carregar jogo: ${e.message}", Toast.LENGTH_LONG).show()
+                    }
+                }
+            }
         }
     }
 }
