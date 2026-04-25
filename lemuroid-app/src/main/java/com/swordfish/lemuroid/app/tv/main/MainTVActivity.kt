@@ -92,12 +92,14 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    // 🚀 CORREÇÃO PARA O COMPILADOR: Criando o HashMap exato exigido
                     val mockConfigsMap = HashMap<Int, ArrayList<ControllerConfig>>()
 
+                    // 🚀 CORREÇÃO DEFINITIVA: Em vez de CoreID(""), pegamos o primeiro valor do Enum
+                    val defaultCore = CoreID.values().first()
+
                     val mockConfig = SystemCoreConfig(
-                        coreID = CoreID(""), // Transformado em objeto CoreID
-                        controllerConfigs = mockConfigsMap, // HashMap vazio mas do tipo correto
+                        coreID = defaultCore, 
+                        controllerConfigs = mockConfigsMap,
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
