@@ -38,7 +38,7 @@ class MainTVActivity : FragmentActivity() {
             databaseEnabled = true
             cacheMode = WebSettings.LOAD_NO_CACHE
         }
-        myWebView.setInitialScale(1) // Garante escala 1:1 para evitar o "zoom" automático
+        myWebView.setInitialScale(1) // Garante escala 1:1
         myWebView.clearCache(true)
         // -------------------------------------------------------
 
@@ -49,7 +49,7 @@ class MainTVActivity : FragmentActivity() {
 }
 
 // ==========================================
-// A PONTE NATIVA (COM SUPORTE A SAÍDA E CONFIGS)
+// A PONTE NATIVA (CORRIGIDA PARA O COMPILADOR)
 // ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
@@ -60,7 +60,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
         thread {
             try {
                 (context as FragmentActivity).runOnUiThread {
-                    Toast.makeText(context, "A carregar jogo...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "Carregando jogo...", Toast.LENGTH_SHORT).show()
                 }
 
                 val url = URL(romUrl)
@@ -78,7 +78,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 tempFile.writeBytes(bytes)
 
                 if (tempFile.length() < 10000) {
-                    throw Exception("ROM corrompida ou link inválido.")
+                    throw Exception("ROM inválida ou link quebrado.")
                 }
 
                 (context as FragmentActivity).runOnUiThread {
@@ -86,7 +86,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         data = Uri.fromFile(tempFile)
                     }
 
-                    // Objeto Game conforme exigido pelo BaseGameActivity original
+                    // 1. Objeto Game (Identidade)
                     val mockGame = Game(
                         id = -1,
                         title = "Arena Retrô Play",
@@ -98,15 +98,16 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    // Objeto SystemCoreConfig necessário para evitar o NullPointer
+                    // 2. Objeto SystemCoreConfig (Ajustado para os erros de compilação)
+                    // O compilador pediu 'coreID' e 'controllerConfigs'
                     val mockConfig = SystemCoreConfig(
-                        systemId = console,
-                        coreId = "", 
+                        coreID = "", // Nome corrigido (ID maiúsculo)
+                        controllerConfigs = listOf(), // Parâmetro obrigatório que faltava
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
                     
-                    // Chaves exatas encontradas no código-fonte (GAME e EXTRA_SYSTEM_CORE_CONFIG)
+                    // Injeção com as chaves exatas do BaseGameActivity
                     intent.putExtra("GAME", mockGame)
                     intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
                     intent.putExtra("core_name", console)
@@ -126,7 +127,6 @@ class ArenaRetroNativeBridge(private val context: Context) {
     @JavascriptInterface
     fun fecharEmulador() {
         (context as FragmentActivity).runOnUiThread {
-            // Mata a atividade do jogo e volta para a MainTVActivity (WebView) sem recarregar
             val intent = Intent(context, MainTVActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
