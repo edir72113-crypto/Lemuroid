@@ -42,58 +42,63 @@ class MainTVActivity : FragmentActivity() {
 }
 
 // ==========================================
-// A PONTE MÁGICA (BLINDADA E COM INSPETOR DE QUALIDADE)
+// A PONTE MÁGICA (COM O HACK DO OBJETO GAME)
 // ==========================================
-@Keep // Escudo 1: Impede o Android de apagar ou renomear a classe
+@Keep
 class ArenaRetroNativeBridge(private val context: Context) {
     
-    @Keep // Escudo 2: Impede o Android de renomear esta função
+    @Keep
     @JavascriptInterface
     fun iniciarJogo(romUrl: String, console: String) {
         thread {
             try {
-                // Aviso visual de início
                 (context as FragmentActivity).runOnUiThread {
                     Toast.makeText(context, "Baixando jogo da nuvem...", Toast.LENGTH_SHORT).show()
                 }
 
-                // Inspetor de Download - Passo 1: Conectar
                 val url = URL(romUrl)
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connect()
 
-                // Inspetor de Download - Passo 2: O servidor deu erro? (ex: 404, 500)
                 if (connection.responseCode != 200) {
                     throw Exception("Servidor negou o arquivo (Código ${connection.responseCode})")
                 }
 
-                // Inspetor de Download - Passo 3: Baixar os bytes
                 val bytes = url.readBytes()
-                
-                // 🚀 A SUA IDEIA AQUI: Pega a extensão real do link (.sfc, .smc, .bin, etc)
-                // Se não achar um ponto, ele usa "rom" como segurança.
                 val extensaoOriginal = romUrl.substringAfterLast(".", "rom")
                 val tempFile = File(context.cacheDir, "temp_game.$extensaoOriginal")
-                
                 tempFile.writeBytes(bytes)
 
-                // Inspetor de Download - Passo 4: O arquivo é uma página HTML de erro quebrada? (menor que 10KB)
                 if (tempFile.length() < 10000) {
                     throw Exception("Arquivo muito pequeno! O link da ROM pode estar quebrado.")
                 }
 
-                // Sucesso Absoluto: Abre o Lemuroid Nativo!
                 (context as FragmentActivity).runOnUiThread {
+                    // 1. Cria o Intent para abrir o emulador
                     val intent = Intent(context, TVGameActivity::class.java).apply {
                         data = Uri.fromFile(tempFile)
                         putExtra("core_name", console)
                     }
+
+                    // 2. O HACK: Cria um jogo falso para enganar o banco de dados do Lemuroid
+                    val mockGame = com.swordfish.lemuroid.lib.library.db.entity.Game(
+                        id = -1, // ID Falso
+                        title = "Gorjeta Plus Game",
+                        path = tempFile.absolutePath, // Onde o jogo está salvo
+                        systemId = console,
+                        isStarred = false,
+                        coverUrl = null
+                    )
+                    
+                    // 3. Envia o Jogo Falso como "bagagem" junto com a intenção
+                    intent.putExtra("game", mockGame)
+
+                    // 4. Inicia!
                     context.startActivity(intent)
                 }
 
             } catch (e: Exception) {
-                // Se qualquer coisa falhar (download, conexão, tamanho do arquivo), mostra o erro na TV
                 (context as FragmentActivity).runOnUiThread {
                     Toast.makeText(context, "FALHA: ${e.message}", Toast.LENGTH_LONG).show()
                 }
