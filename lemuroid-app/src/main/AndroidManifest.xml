@@ -42,8 +42,7 @@
         <activity
             android:name="com.swordfish.lemuroid.app.tv.main.MainTVActivity"
             android:exported="true"
-            android:theme="@style/LemuroidLeanbackTheme">
-            <intent-filter>
+            android:theme="@style/LemuroidLeanbackTheme"> <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
                 <category android:name="android.intent.category.LEANBACK_LAUNCHER" />
@@ -58,8 +57,7 @@
             android:name="com.swordfish.lemuroid.app.shared.game.ExternalGameLauncherActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:exported="true"
-            android:theme="@style/Theme.Lemuroid.TV">
-            <intent-filter>
+            android:theme="@style/LemuroidMaterialTheme.Game"> <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data
@@ -81,19 +79,14 @@
             android:process=":game" />
 
         <activity
-            android:name="com.swordfish.lemuroid.app.mobile.feature.gamemenu.GameMenuActivity"
-            android:process=":game"
-            android:theme="@style/LemuroidMaterialTheme.Menu" />
-
-        <activity
-            android:name="com.swordfish.lemuroid.app.tv.settings.TVSettingsActivity"
-            android:theme="@style/LemuroidLeanbackPreferencesTheme" />
-
-        <activity
             android:name="com.swordfish.lemuroid.app.tv.game.TVGameActivity"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|mnc|colorMode|density|fontScale|fontWeightAdjustment|keyboard|layoutDirection|locale|mcc|navigation|smallestScreenSize|touchscreen|uiMode"
             android:process=":game"
             android:theme="@style/LemuroidMaterialTheme.Game" />
+
+        <activity
+            android:name="com.swordfish.lemuroid.app.tv.settings.TVSettingsActivity"
+            android:theme="@style/LemuroidLeanbackPreferencesTheme" />
 
         <activity
             android:name="com.swordfish.lemuroid.app.tv.gamemenu.TVGameMenuActivity"
