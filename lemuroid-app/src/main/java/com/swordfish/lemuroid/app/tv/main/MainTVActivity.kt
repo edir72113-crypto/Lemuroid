@@ -14,6 +14,8 @@ import androidx.annotation.Keep
 import androidx.fragment.app.FragmentActivity
 import com.swordfish.lemuroid.R
 import com.swordfish.lemuroid.app.tv.game.TVGameActivity
+import com.swordfish.lemuroid.lib.library.SystemCoreConfig
+import com.swordfish.lemuroid.lib.library.db.entity.Game
 import java.io.File
 import java.net.URL
 import kotlin.concurrent.thread
@@ -42,7 +44,7 @@ class MainTVActivity : FragmentActivity() {
 }
 
 // ==========================================
-// A PONTE MÁGICA (METRALHADORA DE CHAVES E BOTÃO DE SAIR)
+// A PONTE MÁGICA (VERSÃO FINAL SNIPER)
 // ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
@@ -57,6 +59,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                     Toast.makeText(context, "Baixando jogo da nuvem...", Toast.LENGTH_SHORT).show()
                 }
 
+                // 1. Download da ROM
                 val url = URL(romUrl)
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
@@ -78,10 +81,10 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 (context as FragmentActivity).runOnUiThread {
                     val intent = Intent(context, TVGameActivity::class.java).apply {
                         data = Uri.fromFile(tempFile)
-                        putExtra("core_name", console)
                     }
 
-                    val mockGame = com.swordfish.lemuroid.lib.library.db.entity.Game(
+                    // 🚀 O HACK DO JOGO: Identidade necessária para o emulador
+                    val mockGame = Game(
                         id = -1,
                         title = "Fliperama Arena Retro",
                         systemId = console,
@@ -91,17 +94,19 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         coverFrontUrl = "",
                         lastIndexedAt = System.currentTimeMillis()
                     )
-                    
-                    // 🚀 O HACK DA METRALHADORA: Colocamos o jogo em todas as gavetas possíveis!
-                    val chavesPossiveis = arrayOf(
-                        "game", "GAME", "Game", 
-                        "extra_game", "EXTRA_GAME", 
-                        "game_extra", "GAME_EXTRA", 
-                        "game_model", "model"
+
+                    // 🚀 O HACK DA CONFIG: A "mala" que faltava e causava o crash
+                    val mockConfig = SystemCoreConfig(
+                        systemId = console,
+                        coreId = "", // O Lemuroid escolherá o core padrão para o console
+                        exposedSettings = listOf(),
+                        exposedAdvancedSettings = listOf()
                     )
-                    for (chave in chavesPossiveis) {
-                        intent.putExtra(chave, mockGame)
-                    }
+                    
+                    // Usando as chaves exatas descobertas no BaseGameActivity.kt
+                    intent.putExtra("GAME", mockGame)
+                    intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
+                    intent.putExtra("core_name", console)
 
                     context.startActivity(intent)
                 }
@@ -119,7 +124,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
     @JavascriptInterface
     fun fecharEmulador() {
         (context as FragmentActivity).runOnUiThread {
-            // O comando CLEAR_TOP destrói o emulador e traz o site de volta para a frente sem recarregar a página
+            // O comando CLEAR_TOP destrói o emulador e traz o site de volta para a frente
             val intent = Intent(context, MainTVActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
