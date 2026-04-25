@@ -28,45 +28,48 @@ class MainTVActivity : FragmentActivity() {
         setContentView(R.layout.activity_tv_main)
 
         val myWebView: WebView = findViewById(R.id.arena_retro_webview)
-        myWebView.settings.javaScriptEnabled = true
-        myWebView.settings.domStorageEnabled = true
         
-        // 1. LIMPEZA DE CACHE: Garante que o site React sempre carregue atualizado
+        // --- CONFIGURAÇÕES PARA FIXAR ZOOM E CORTE DE TEXTO ---
+        myWebView.settings.apply {
+            javaScriptEnabled = true
+            domStorageEnabled = true
+            useWideViewPort = true
+            loadWithOverviewMode = true
+            databaseEnabled = true
+            cacheMode = WebSettings.LOAD_NO_CACHE
+        }
+        myWebView.setInitialScale(1) // Garante escala 1:1 para evitar o "zoom" automático
         myWebView.clearCache(true)
-        myWebView.settings.cacheMode = WebSettings.LOAD_NO_CACHE
+        // -------------------------------------------------------
 
         myWebView.webViewClient = WebViewClient()
-
-        // 2. INJEÇÃO DA PONTE NATIVA: Conecta o site com o Android
         myWebView.addJavascriptInterface(ArenaRetroNativeBridge(this), "ArenaRetroNative")
         myWebView.loadUrl("https://gorjetaplus.online/")
     }
 }
 
 // ==========================================
-// A PONTE MÁGICA (VERSÃO FINAL SNIPER)
+// A PONTE NATIVA (COM SUPORTE A SAÍDA E CONFIGS)
 // ==========================================
 @Keep
 class ArenaRetroNativeBridge(private val context: Context) {
     
-    // FUNÇÃO 1: INICIAR O JOGO (COM TODAS AS MALAS NECESSÁRIAS)
     @Keep
     @JavascriptInterface
     fun iniciarJogo(romUrl: String, console: String) {
         thread {
             try {
                 (context as FragmentActivity).runOnUiThread {
-                    Toast.makeText(context, "Baixando jogo da nuvem...", Toast.LENGTH_SHORT).show()
+                    Toast.makeText(context, "A carregar jogo...", Toast.LENGTH_SHORT).show()
                 }
 
-                // Download da ROM para a pasta de Cache
                 val url = URL(romUrl)
                 val connection = url.openConnection() as java.net.HttpURLConnection
                 connection.requestMethod = "GET"
                 connection.connect()
 
                 if (connection.responseCode != 200) {
-                    throw Exception("Servidor negou o arquivo (Código ${connection.responseCode})")
+                    throw Exception("Erro no servidor: ${connection.responseCode}")
                 }
 
                 val bytes = url.readBytes()
@@ -75,7 +78,7 @@ class ArenaRetroNativeBridge(private val context: Context) {
                 tempFile.writeBytes(bytes)
 
                 if (tempFile.length() < 10000) {
-                    throw Exception("Arquivo muito pequeno! Link quebrado.")
+                    throw Exception("ROM corrompida ou link inválido.")
                 }
 
                 (context as FragmentActivity).runOnUiThread {
@@ -83,10 +86,10 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         data = Uri.fromFile(tempFile)
                     }
 
-                    // 🚀 O HACK DO JOGO: Identidade necessária (Chave "GAME")
+                    // Objeto Game conforme exigido pelo BaseGameActivity original
                     val mockGame = Game(
                         id = -1,
-                        title = "Fliperama Arena Retro",
+                        title = "Arena Retrô Play",
                         systemId = console,
                         fileName = tempFile.name,
                         fileUri = Uri.fromFile(tempFile).toString(),
@@ -95,15 +98,15 @@ class ArenaRetroNativeBridge(private val context: Context) {
                         lastIndexedAt = System.currentTimeMillis()
                     )
 
-                    // 🚀 O HACK DA CONFIG: A "mala" obrigatória (Chave "EXTRA_SYSTEM_CORE_CONFIG")
+                    // Objeto SystemCoreConfig necessário para evitar o NullPointer
                     val mockConfig = SystemCoreConfig(
                         systemId = console,
-                        coreId = "", // O Lemuroid escolherá o core padrão
+                        coreId = "", 
                         exposedSettings = listOf(),
                         exposedAdvancedSettings = listOf()
                     )
                     
-                    // Injeta os dados usando as chaves exatas do BaseGameActivity.kt
+                    // Chaves exatas encontradas no código-fonte (GAME e EXTRA_SYSTEM_CORE_CONFIG)
                     intent.putExtra("GAME", mockGame)
                     intent.putExtra("EXTRA_SYSTEM_CORE_CONFIG", mockConfig)
                     intent.putExtra("core_name", console)
@@ -119,12 +122,11 @@ class ArenaRetroNativeBridge(private val context: Context) {
         }
     }
 
-    // FUNÇÃO 2: FECHAR O EMULADOR PELO CELULAR
     @Keep
     @JavascriptInterface
     fun fecharEmulador() {
         (context as FragmentActivity).runOnUiThread {
-            // O comando CLEAR_TOP destrói o jogo e traz a WebView de volta sem recarregar
+            // Mata a atividade do jogo e volta para a MainTVActivity (WebView) sem recarregar
             val intent = Intent(context, MainTVActivity::class.java).apply {
                 addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP or Intent.FLAG_ACTIVITY_SINGLE_TOP)
             }
