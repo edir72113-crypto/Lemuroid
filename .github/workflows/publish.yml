@@ -5,7 +5,7 @@ on:
     branches:
       - master
       - main
-  workflow_dispatch: # <-- Isso cria o botão azul "Run workflow"
+  workflow_dispatch: # Permite rodar manualmente pelo botão azul
 
 jobs:
   build:
@@ -14,7 +14,6 @@ jobs:
     steps:
     - name: Checkout do Código
       uses: actions/checkout@v4
-      # Tiramos o submodules: recursive daqui!
 
     - name: Forçar download dos emuladores atualizados
       run: |
@@ -31,10 +30,12 @@ jobs:
       run: chmod +x gradlew
 
     - name: Buildar o APK (Assemble Debug)
-      run: ./gradlew assembleDebug
+      # Adicionamos --no-daemon para economizar RAM e --stacktrace para ver erros detalhados
+      run: ./gradlew assembleDebug --no-daemon --stacktrace
 
     - name: Upload do APK Gerado
       uses: actions/upload-artifact@v4
       with:
         name: Lemuroid-Mod-APK
-        path: app/build/outputs/apk/debug/app-debug.apk
+        # Ajustado para o caminho correto do módulo 'lemuroid-app'
+        path: lemuroid-app/build/outputs/apk/**/*.apk
