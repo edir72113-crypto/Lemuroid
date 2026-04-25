@@ -6,6 +6,9 @@ import okhttp3.Request
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
 import okhttp3.Response
+import android.os.SystemClock
+import android.view.InputDevice
+import android.view.KeyCharacterMap
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -491,9 +494,28 @@ abstract class BaseGameActivity : ImmersiveActivity() {
             "R1" -> KeyEvent.KEYCODE_BUTTON_R1
             else -> return
         }
+        
         val keyAction = if (isDown) KeyEvent.ACTION_DOWN else KeyEvent.ACTION_UP
-        val event = KeyEvent(keyAction, keyCode)
-        baseGameScreenViewModel.sendKeyEvent(keyCode, event)
+        val eventTime = SystemClock.uptimeMillis()
+
+        // 🚀 O TRUQUE DO GAMEPAD: Enganamos o emulador para achar que é um Joystick Físico!
+        val event = KeyEvent(
+            eventTime, 
+            eventTime, 
+            keyAction, 
+            keyCode, 
+            0, 
+            0, 
+            KeyCharacterMap.VIRTUAL_KEYBOARD, 
+            0, 
+            0, 
+            InputDevice.SOURCE_GAMEPAD
+        )
+
+        // 🚀 O SEGREDO DAS THREADS: Força a execução na camada visual da tela
+        runOnUiThread {
+            baseGameScreenViewModel.sendKeyEvent(keyCode, event)
+        }
     }
 
     companion object {
