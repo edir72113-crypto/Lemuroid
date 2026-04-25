@@ -29,9 +29,8 @@ jobs:
     - name: Dar permissão ao Gradle
       run: chmod +x gradlew
 
-    - name: Buildar o APK (Assemble Play Debug)
-      # Adicionamos --no-daemon para economizar RAM e --stacktrace para ver erros detalhados
-      run: ./gradlew assemblePlayDebug --no-daemon --stacktrace
+    - name: Buildar o APK (Assemble Play Bundle Debug)
+      run: ./gradlew assemblePlayBundleDebug --no-daemon --stacktrace
 
     - name: Upload do APK Gerado
       uses: actions/upload-artifact@v4
